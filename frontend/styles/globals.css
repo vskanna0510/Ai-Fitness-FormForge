@@ -1,0 +1,25 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  background-color: #05070F;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "SF Pro Display", sans-serif;
+}
+
+.glass-panel {
+  background: radial-gradient(circle at top left, rgba(59, 130, 246, 0.18), transparent),
+    rgba(15, 23, 42, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.hud-shadow {
+  box-shadow: 0 0 60px rgba(59, 130, 246, 0.5);
+}
+

@@ -1,5 +1,6 @@
 import "./styles.css";
 import type { ReactNode } from "react";
+import { AppProviders } from "./providers";
 
 export const metadata = {
   title: "FormForge – AI Form Coach",
@@ -10,7 +11,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-background text-white antialiased">
-        {children}
+        <AppProviders>{children}</AppProviders>
       </body>
     </html>
   );

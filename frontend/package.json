@@ -9,6 +9,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.28.0",
+    "@trpc/client": "^11.0.0-rc.620",
+    "@trpc/react-query": "^11.0.0-rc.620",
+    "@trpc/server": "^11.0.0-rc.620",
     "@tensorflow-models/pose-detection": "^3.0.0",
     "@tensorflow/tfjs-backend-webgl": "^4.20.0",
     "@tensorflow/tfjs-converter": "^4.20.0",

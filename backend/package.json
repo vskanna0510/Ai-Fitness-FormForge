@@ -1,0 +1,23 @@
+{
+  "name": "formforge-backend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.11.0",
+    "@trpc/server": "^11.0.0-rc.620",
+    "fastify": "^4.26.2",
+    "fastify-cors": "^8.4.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "prisma": "^5.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}
+

@@ -1,0 +1,58 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String            @id @default(cuid())
+  email      String            @unique
+  name       String?
+  plan       String            @default("free")
+  createdAt  DateTime          @default(now())
+  sessions   WorkoutSession[]
+  programs   Program[]
+}
+
+model Exercise {
+  id          String           @id @default(cuid())
+  name        String
+  rulesJson   Json
+  cuePhrases  String[]
+  sessions    WorkoutSession[]
+}
+
+model WorkoutSession {
+  id            String      @id @default(cuid())
+  user          User        @relation(fields: [userId], references: [id])
+  userId        String
+  exercise      Exercise    @relation(fields: [exerciseId], references: [id])
+  exerciseId    String
+  startedAt     DateTime    @default(now())
+  totalReps     Int         @default(0)
+  avgFormScore  Float       @default(0)
+  repEvents     RepEvent[]
+}
+
+model RepEvent {
+  id           String         @id @default(cuid())
+  time         DateTime
+  session      WorkoutSession @relation(fields: [sessionId], references: [id])
+  sessionId    String
+  repNumber    Int
+  formScore    Float
+  keypointsJson Json
+  errors       String[]
+}
+
+model Program {
+  id         String   @id @default(cuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  weeksJson  Json
+  createdAt  DateTime @default(now())
+}
+

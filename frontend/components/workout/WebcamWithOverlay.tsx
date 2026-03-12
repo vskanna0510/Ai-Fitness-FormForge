@@ -1,11 +1,13 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useAnimationControls } from "framer-motion";
 import { useRef, useEffect } from "react";
 import { useWebcamStream } from "../../hooks/useWebcamStream";
 import { usePoseDetection } from "../../hooks/usePoseDetection";
+import { useRepCounter } from "../../hooks/useRepCounter";
 import { MOVENET_SKELETON } from "../../pose/skeletonLayout";
 import type { Pose2D, Keypoint2D } from "../../pose/types";
+import type { JointState } from "../../pose/rules";
 
 const MIN_CONFIDENCE = 0.3;
 
@@ -18,6 +20,18 @@ export function WebcamWithOverlay() {
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const { pose, fps } = usePoseDetection(videoRef, { targetFps: 30 });
+  const { repCount, lastRep, currentPhase, currentScore, jointStates } =
+    useRepCounter(pose);
+
+  const repControls = useAnimationControls();
+
+  useEffect(() => {
+    if (!lastRep) return;
+    void repControls.start({
+      scale: [1, 1.2, 1],
+      transition: { duration: 0.25 }
+    });
+  }, [lastRep, repControls]);
 
   useEffect(() => {
     const videoEl = videoRef.current;
@@ -53,8 +67,8 @@ export function WebcamWithOverlay() {
 
     if (!pose) return;
 
-    drawSkeleton(ctx, pose);
-  }, [pose, videoRef]);
+    drawSkeleton(ctx, pose, jointStates);
+  }, [pose, videoRef, jointStates]);
 
   return (
     <div className="relative w-full max-w-5xl aspect-video rounded-3xl glass-panel hud-shadow overflow-hidden">
@@ -71,14 +85,51 @@ export function WebcamWithOverlay() {
       />
 
       <motion.div
-        className="pointer-events-none absolute bottom-4 right-4 rounded-full bg-black/40 px-4 py-1.5 text-xs text-neutral-300 backdrop-blur-md"
+        className="pointer-events-none absolute bottom-4 right-4 flex items-center gap-2 rounded-full bg-black/45 px-4 py-1.5 text-xs text-neutral-300 backdrop-blur-md"
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
       >
         {error ? (
           <span className="text-red-400">{error}</span>
         ) : (
-          <span>Pose engine · {fps} FPS</span>
+          <>
+            <span className="text-neutral-400">Pose</span>
+            <span className="font-semibold text-neutral-100">{fps} FPS</span>
+            <span className="h-3 w-px bg-neutral-700" />
+            <span className="text-neutral-400">Phase</span>
+            <span className="font-semibold capitalize text-neutral-100">
+              {currentPhase}
+            </span>
+            <span className="h-3 w-px bg-neutral-700" />
+            <span className="text-neutral-400">Form</span>
+            <span className="font-semibold text-accent-blue">
+              {Math.round(currentScore)}
+            </span>
+          </>
+        )}
+      </motion.div>
+
+      <motion.div
+        className="pointer-events-none absolute top-6 left-6 flex flex-col items-start gap-2 rounded-2xl bg-black/40 px-4 py-3 text-xs text-neutral-300 backdrop-blur-md"
+        initial={{ opacity: 0, x: -12 }}
+        animate={{ opacity: 1, x: 0 }}
+      >
+        <span className="text-[10px] uppercase tracking-[0.2em] text-neutral-500">
+          Reps
+        </span>
+        <motion.span
+          className="text-3xl font-semibold text-white"
+          animate={repControls}
+        >
+          {repCount}
+        </motion.span>
+        {lastRep && (
+          <span className="text-[11px] text-neutral-400">
+            Last rep:{" "}
+            <span className="text-accent-blue">
+              {Math.round(lastRep.score)} / 100
+            </span>
+          </span>
         )}
       </motion.div>
 
@@ -100,7 +151,39 @@ export function WebcamWithOverlay() {
   );
 }
 
-function drawSkeleton(ctx: CanvasRenderingContext2D, pose: Pose2D) {
+function colorForState(state: JointState | undefined): {
+  joint: string;
+  line: string;
+} {
+  switch (state) {
+    case "good":
+      return {
+        joint: "#22c55e",
+        line: "#22c55e"
+      };
+    case "warning":
+      return {
+        joint: "#eab308",
+        line: "#eab308"
+      };
+    case "error":
+      return {
+        joint: "#ef4444",
+        line: "#ef4444"
+      };
+    default:
+      return {
+        joint: "#38BDF8",
+        line: "#3B82F6"
+      };
+  }
+}
+
+function drawSkeleton(
+  ctx: CanvasRenderingContext2D,
+  pose: Pose2D,
+  jointStates: Record<string, JointState>
+) {
   const keypoints = pose.keypoints.filter(
     (kp: Keypoint2D) => kp.score >= MIN_CONFIDENCE
   );
@@ -110,26 +193,28 @@ function drawSkeleton(ctx: CanvasRenderingContext2D, pose: Pose2D) {
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
-  // Connections
   for (const [aName, bName] of MOVENET_SKELETON) {
     const a = keypoints.find(k => k.name === aName);
     const b = keypoints.find(k => k.name === bName);
     if (!a || !b) continue;
 
-    const gradient = ctx.createLinearGradient(a.x, a.y, b.x, b.y);
-    gradient.addColorStop(0, "rgba(59,130,246,0.85)");
-    gradient.addColorStop(1, "rgba(236,72,153,0.85)");
+    const stateA = jointStates[a.name];
+    const stateB = jointStates[b.name];
+    const color = colorForState(stateA || stateB);
 
-    ctx.strokeStyle = gradient;
+    ctx.strokeStyle = color.line;
+    ctx.globalAlpha = stateA === "error" || stateB === "error" ? 1 : 0.9;
+
     ctx.beginPath();
     ctx.moveTo(a.x, a.y);
     ctx.lineTo(b.x, b.y);
     ctx.stroke();
   }
 
-  // Joints
   for (const kp of keypoints) {
     const radius = 6;
+    const state = jointStates[kp.name];
+    const color = colorForState(state);
 
     const glowGradient = ctx.createRadialGradient(
       kp.x,
@@ -139,20 +224,20 @@ function drawSkeleton(ctx: CanvasRenderingContext2D, pose: Pose2D) {
       kp.y,
       radius * 3
     );
-    glowGradient.addColorStop(0, "rgba(59,130,246,0.9)");
-    glowGradient.addColorStop(1, "rgba(59,130,246,0)");
+    glowGradient.addColorStop(0, `${color.joint}e6`);
+    glowGradient.addColorStop(1, "rgba(15,23,42,0)");
 
     ctx.fillStyle = glowGradient;
     ctx.beginPath();
-    ctx.arc(kp.x, kp.y, radius * 2.4, 0, Math.PI * 2);
+    ctx.arc(kp.x, kp.y, radius * 2.6, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = "#0F172A";
+    ctx.fillStyle = "#020617";
     ctx.beginPath();
     ctx.arc(kp.x, kp.y, radius, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.strokeStyle = "#38BDF8";
+    ctx.strokeStyle = color.joint;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(kp.x, kp.y, radius, 0, Math.PI * 2);

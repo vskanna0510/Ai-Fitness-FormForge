@@ -5,6 +5,7 @@ import { useRef, useEffect } from "react";
 import { useWebcamStream } from "../../hooks/useWebcamStream";
 import { usePoseDetection } from "../../hooks/usePoseDetection";
 import { useRepCounter } from "../../hooks/useRepCounter";
+import { useVoiceCoaching } from "../../hooks/useVoiceCoaching";
 import { MOVENET_SKELETON } from "../../pose/skeletonLayout";
 import type { Pose2D, Keypoint2D } from "../../pose/types";
 import type { JointState } from "../../pose/rules";
@@ -22,6 +23,8 @@ export function WebcamWithOverlay() {
   const { pose, fps } = usePoseDetection(videoRef, { targetFps: 30 });
   const { repCount, lastRep, currentPhase, currentScore, jointStates } =
     useRepCounter(pose);
+
+  useVoiceCoaching(pose);
 
   const repControls = useAnimationControls();
 
